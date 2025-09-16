@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matrix Rain with Custom Image</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Courier New', monospace;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #0f0;
+        }
+        
+        #matrix-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        
+        #image-canvas {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            border: 1px solid #0f0;
+            z-index: 10;
+            display: none;
+            cursor: move;
+        }
+        
+        .control-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 20, 0, 0.8);
+            border: 1px solid #0f0;
+            border-radius: 8px;
+            padding: 20px;
+            width: 300px;
+            z-index: 10;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
+            backdrop-filter: blur(5px);
+            transition: transform 0.3s ease;
+            resize: both;
+            overflow: auto;
+            min-width: 250px;
+            min-height: 400px;
+            max-width: 80vw;
+            max-height: 80vh;
+        }
+        
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #0f0;
+            cursor: move;
+        }
+        
+        h2 {
+            font-size: 1.5rem;
+            color: #0ff;
+            text-shadow: 0 0 5px #0ff;
+        }
+        
+        .toggle-btn, .btn, .toggle-image-btn, .import-btn {
+            background: #002;
+            color: #0ff;
+            border: 1px solid #0ff;
+            border-radius: 4px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            transition: all 0.3s;
+        }
+        
+        .toggle-btn {
+            padding: 5px 10px;
+        }
+        
+        .toggle-btn:hover, .btn:hover, .toggle-image-btn:hover, .import-btn:hover {
+            background: #004;
+            box-shadow: 0 0 8px #0ff;
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            -webkit-appearance: none;
+            background: #002;
+            border-radius: 4px;
+            outline: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #0ff;
+            cursor: pointer;
+            box-shadow: 0 0 5px #0ff;
+        }
+        
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            background: #002;
+            border: 1px solid #0f0;
+            border-radius: 4px;
+            padding: 8px;
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .color-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .color-option {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        
+        .color-option.active {
+            border-color: #fff;
+            box-shadow: 0 0 10px #fff;
+        }
+        
+        .instructions, .key-hint {
+            color: #0f0;
+            font-size: 14px;
+            opacity: 0.7;
+            z-index: 10;
+            background: rgba(0, 20, 0, 0.5);
+            padding: 10px;
+            border-radius: 4px;
+        }
+        
+        .instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+        }
+        
+        .key-hint {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+        }
+        
+        .hidden {
+            transform: translateX(350px);
+        }
+        
+        .image-preview {
+            margin-top: 10px;
+            text-align: center;
+            color: #0ff;
+        }
+        
+        .resize-handle {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            width: 15px;
+            height: 15px;
+            cursor: nwse-resize;
+            z-index: 20;
+        }
+        
+        .resize-handle::after {
+            content: '';
+            position: absolute;
+            bottom: 3px;
+            right: 3px;
+            width: 8px;
+            height: 8px;
+            border-right: 2px solid #0f0;
+            border-bottom: 2px solid #0f0;
+        }
+        
+        .import-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #0f0;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="matrix-canvas"></canvas>
+    <canvas id="image-canvas"></canvas>
+    
+    <div class="key-hint">Press M to toggle controls</div>
+    
+    <div class="control-panel">
+        <div class="panel-header">
+            <h2>MATRIX CONTROL</h2>
+            <button id="toggle-panel" class="toggle-btn">HIDE</button>
+        </div>
+        
+        <div class="control-group">
+            <label for="speed-control">RAIN SPEED</label>
+            <input type="range" id="speed-control" min="20" max="100" value="35">
+        </div>
+        
+        <div class="control-group">
+            <label>RAIN COLOR</label>
+            <div class="color-options">
+                <div class="color-option active" style="background-color: #0f0;" data-color="#0f0"></div>
+                <div class="color-option" style="background-color: #0ff;" data-color="#0ff"></div>
+                <div class="color-option" style="background-color: #f0f;" data-color="#f0f"></div>
+                <div class="color-option" style="background-color: #ff0;" data-color="#ff0"></div>
+                <div class="color-option" style="background-color: #f00;" data-color="#f00"></div>
+                <div class="color-option" style="background-color: #00f;" data-color="#00f"></div>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <label>BACKGROUND INTENSITY</label>
+            <input type="range" id="intensity-control" min="1" max="10" value="4">
+        </div>
+        
+        <div class="control-group">
+            <label for="density-control">RAIN DENSITY</label>
+            <input type="range" id="density-control" min="1" max="100" value="100">
+        </div>
+        
+        <div class="control-group">
+            <label for="custom-text">CUSTOM TEXT</label>
+            <input type="text" id="custom-text" placeholder="Enter custom text (e.g. ANKUR GHOST)">
+        </div>
+        
+        <div class="control-group">
+            <label for="text-frequency">TEXT FREQUENCY</label>
+            <input type="range" id="text-frequency" min="1" max="100" value="20">
+        </div>
+        
+        <div class="control-group">
+            <label for="image-text">IMAGE TEXT</label>
+            <input type="text" id="image-text" placeholder="Text for image (e.g. ANKUR GHOST)">
+        </div>
+        
+        <div class="control-group">
+            <label for="font-size">FONT SIZE</label>
+            <input type="number" id="font-size" value="40" min="10" max="100">
+        </div>
+        
+        <div class="control-group">
+            <label for="image-color">IMAGE COLOR</label>
+            <div class="color-options">
+                <div class="color-option active" style="background-color: #0f0;" data-image-color="#0f0"></div>
+                <div class="color-option" style="background-color: #0ff;" data-image-color="#0ff"></div>
+                <div class="color-option" style="background-color: #f0f;" data-image-color="#f0f"></div>
+                <div class="color-option" style="background-color: #ff0;" data-image-color="#ff0"></div>
+                <div class="color-option" style="background-color: #f00;" data-image-color="#f00"></div>
+                <div class="color-option" style="background-color: #00f;" data-image-color="#00f"></div>
+            </div>
+        </div>
+        
+        <button id="create-image" class="btn">CREATE IMAGE</button>
+        <button id="toggle-image" class="toggle-image-btn">SHOW IMAGE</button>
+        
+        <div class="import-section">
+            <label for="import-text">IMPORT TEXT (For Lively Wallpaper)</label>
+            <input type="text" id="import-text" placeholder="Paste text to import">
+            <button id="import-btn" class="import-btn">IMPORT TEXT</button>
+        </div>
+        
+        <div class="image-preview" id="image-preview">Image will appear here after creation</div>
+        <div class="resize-handle"></div>
+    </div>
+    
+    <div class="instructions">
+        Drag controls to customize the Matrix rain effect
+    </div>
+
+    <script>
+        // Cache DOM elements
+        const domElements = {
+            canvas: document.getElementById('matrix-canvas'),
+            imageCanvas: document.getElementById('image-canvas'),
+            speedControl: document.getElementById('speed-control'),
+            intensityControl: document.getElementById('intensity-control'),
+            densityControl: document.getElementById('density-control'),
+            customTextInput: document.getElementById('custom-text'),
+            textFrequencyControl: document.getElementById('text-frequency'),
+            imageTextInput: document.getElementById('image-text'),
+            fontSizeInput: document.getElementById('font-size'),
+            createImageBtn: document.getElementById('create-image'),
+            toggleImageBtn: document.getElementById('toggle-image'),
+            importTextInput: document.getElementById('import-text'),
+            importBtn: document.getElementById('import-btn'),
+            imagePreview: document.getElementById('image-preview'),
+            colorOptions: document.querySelectorAll('.color-option'),
+            imageColorOptions: document.querySelectorAll('[data-image-color]'),
+            togglePanelBtn: document.getElementById('toggle-panel'),
+            controlPanel: document.querySelector('.control-panel'),
+            panelHeader: document.querySelector('.panel-header'),
+            resizeHandle: document.querySelector('.resize-handle')
+        };
+
+        // Initialize contexts
+        const ctx = domElements.canvas.getContext('2d');
+        const imageCtx = domElements.imageCanvas.getContext('2d');
+
+        // Set canvas dimensions
+        domElements.canvas.width = window.innerWidth;
+        domElements.canvas.height = window.innerHeight;
+
+        // Constants and variables
+        const defaultChars = "01";
+        const fontSize = 16;
+        let columns = Math.floor(domElements.canvas.width / fontSize);
+        
+        // Settings with defaults
+        const settings = {
+            rainColor: '#0f0',
+            imageColor: '#0f0',
+            intensity: 4,
+            density: 1.0,
+            customText: "",
+            textFrequency: 0.2,
+            isImageVisible: false,
+            animationInterval: 35,
+            animationId: null
+        };
+
+        // Drops array - one per column
+        const drops = Array(columns).fill(0).map(() => Math.floor(Math.random() * domElements.canvas.height / fontSize));
+
+        // State variables
+        let isImageDragging = false;
+        let imageDragOffsetX, imageDragOffsetY;
+        let isPanelDragging = false;
+        let panelDragOffsetX, panelDragOffsetY;
+        let isResizing = false;
+
+        // Initialize animation
+        startAnimation();
+
+        function startAnimation() {
+            if (settings.animationId) cancelAnimationFrame(settings.animationId);
+            draw();
+        }
+
+        // Optimized draw function
+        function draw() {
+            // Semi-transparent black to create trail effect
+            ctx.fillStyle = `rgba(0, 0, 0, 0.0${settings.intensity})`;
+            ctx.fillRect(0, 0, domElements.canvas.width, domElements.canvas.height);
+            
+            ctx.font = `${fontSize}px 'Courier New', monospace`;
+            
+            for (let i = 0; i < drops.length; i++) {
+                // Skip some columns based on density
+                if (Math.random() > settings.density) continue;
+                
+                // Determine which character to show
+                let text;
+                if (settings.customText && Math.random() < settings.textFrequency) {
+                    // Show a character from custom text
+                    text = settings.customText.charAt(Math.floor(Math.random() * settings.customText.length));
+                } else {
+                    // Show 0 or 1
+                    text = defaultChars.charAt(Math.floor(Math.random() * defaultChars.length));
+                }
+                
+                // Color based on position in the stream
+                ctx.fillStyle = drops[i] < 2 ? '#0ff' : settings.rainColor;
+                
+                // Draw the character
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                
+                // Reset drops that reach the bottom
+                if (drops[i] * fontSize > domElements.canvas.height && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+                
+                // Move the drop down
+                drops[i]++;
+            }
+            
+            // Use requestAnimationFrame for smoother animation
+            settings.animationId = requestAnimationFrame(draw);
+        }
+
+        // Create custom image with text
+        function createCustomImage() {
+            const text = domElements.imageTextInput.value || "ANKUR GHOST";
+            const fontSize = parseInt(domElements.fontSizeInput.value) || 40;
+            
+            // Set canvas dimensions based on text size
+            domElements.imageCanvas.width = text.length * fontSize * 0.8;
+            domElements.imageCanvas.height = fontSize * 2;
+            
+            // Clear canvas
+            imageCtx.clearRect(0, 0, domElements.imageCanvas.width, domElements.imageCanvas.height);
+            
+            // Draw background
+            imageCtx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            imageCtx.fillRect(0, 0, domElements.imageCanvas.width, domElements.imageCanvas.height);
+            
+            // Draw text
+            imageCtx.font = `bold ${fontSize}px 'Courier New', monospace`;
+            imageCtx.fillStyle = settings.imageColor;
+            imageCtx.textAlign = 'center';
+            imageCtx.textBaseline = 'middle';
+            
+            // Add glow effect
+            imageCtx.shadowColor = settings.imageColor;
+            imageCtx.shadowBlur = 10;
+            imageCtx.fillText(text, domElements.imageCanvas.width / 2, domElements.imageCanvas.height / 2);
+            imageCtx.shadowBlur = 0;
+            
+            // Update preview text
+            domElements.imagePreview.textContent = 'Right-click the image to save it';
+            
+            // Show the image if the toggle is on
+            if (settings.isImageVisible) {
+                domElements.imageCanvas.style.display = 'block';
+            }
+        }
+
+        // Toggle image visibility
+        function toggleImage() {
+            settings.isImageVisible = !settings.isImageVisible;
+            domElements.imageCanvas.style.display = settings.isImageVisible ? 'block' : 'none';
+            domElements.toggleImageBtn.textContent = settings.isImageVisible ? 'HIDE IMAGE' : 'SHOW IMAGE';
+        }
+
+        // Import text functionality for Lively Wallpaper
+        function importText() {
+            const text = domElements.importTextInput.value.trim();
+            if (text) {
+                domElements.customTextInput.value = text;
+                settings.customText = text;
+                domElements.imageTextInput.value = text;
+                domElements.importTextInput.value = '';
+                alert('Text imported successfully!');
+            } else {
+                alert('Please enter some text to import.');
+            }
+        }
+
+        // Event handlers
+        function setupEventListeners() {
+            // Make image draggable
+            domElements.imageCanvas.addEventListener('mousedown', function(e) {
+                isImageDragging = true;
+                imageDragOffsetX = e.clientX - domElements.imageCanvas.getBoundingClientRect().left;
+                imageDragOffsetY = e.clientY - domElements.imageCanvas.getBoundingClientRect().top;
+                domElements.imageCanvas.style.cursor = 'grabbing';
+            });
+            
+            // Make control panel draggable
+            domElements.panelHeader.addEventListener('mousedown', function(e) {
+                if (e.target !== domElements.togglePanelBtn) {
+                    isPanelDragging = true;
+                    panelDragOffsetX = e.clientX - domElements.controlPanel.getBoundingClientRect().left;
+                    panelDragOffsetY = e.clientY - domElements.controlPanel.getBoundingClientRect().top;
+                    domElements.controlPanel.style.cursor = 'grabbing';
+                }
+            });
+            
+            // Document mouse move handler
+            document.addEventListener('mousemove', function(e) {
+                if (isImageDragging) {
+                    const x = e.clientX - imageDragOffsetX;
+                    const y = e.clientY - imageDragOffsetY;
+                    
+                    // Keep image within viewport bounds
+                    const maxX = window.innerWidth - domElements.imageCanvas.offsetWidth;
+                    const maxY = window.innerHeight - domElements.imageCanvas.offsetHeight;
+                    
+                    domElements.imageCanvas.style.left = Math.max(0, Math.min(x, maxX)) + 'px';
+                    domElements.imageCanvas.style.top = Math.max(0, Math.min(y, maxY)) + 'px';
+                }
+                
+                if (isPanelDragging) {
+                    const x = e.clientX - panelDragOffsetX;
+                    const y = e.clientY - panelDragOffsetY;
+                    
+                    // Keep panel within viewport bounds
+                    const maxX = window.innerWidth - domElements.controlPanel.offsetWidth;
+                    const maxY = window.innerHeight - domElements.controlPanel.offsetHeight;
+                    
+                    domElements.controlPanel.style.left = Math.max(0, Math.min(x, maxX)) + 'px';
+                    domElements.controlPanel.style.top = Math.max(0, Math.min(y, maxY)) + 'px';
+                    domElements.controlPanel.style.right = 'auto';
+                }
+                
+                if (isResizing) {
+                    const width = e.clientX - domElements.controlPanel.getBoundingClientRect().left;
+                    const height = e.clientY - domElements.controlPanel.getBoundingClientRect().top;
+                    
+                    domElements.controlPanel.style.width = Math.max(250, width) + 'px';
+                    domElements.controlPanel.style.height = Math.max(400, height) + 'px';
+                }
+            });
+            
+            // Document mouse up handler
+            document.addEventListener('mouseup', function() {
+                isImageDragging = false;
+                isPanelDragging = false;
+                isResizing = false;
+                domElements.imageCanvas.style.cursor = 'move';
+                domElements.controlPanel.style.cursor = 'default';
+            });
+            
+            // Make control panel resizable
+            domElements.resizeHandle.addEventListener('mousedown', function(e) {
+                isResizing = true;
+                e.preventDefault();
+            });
+            
+            // Handle window resize
+            window.addEventListener('resize', function() {
+                domElements.canvas.width = window.innerWidth;
+                domElements.canvas.height = window.innerHeight;
+                
+                // Recalculate columns and reset drops
+                columns = Math.floor(domElements.canvas.width / fontSize);
+                for (let i = 0; i < columns; i++) {
+                    if (i < drops.length) {
+                        continue;
+                    } else {
+                        drops[i] = Math.floor(Math.random() * domElements.canvas.height / fontSize);
+                    }
+                }
+                
+                // Trim drops if columns decreased
+                drops.length = columns;
+            });
+            
+            // Control event listeners
+            domElements.speedControl.addEventListener('input', function() {
+                settings.animationInterval = 120 - this.value;
+                startAnimation();
+            });
+            
+            domElements.intensityControl.addEventListener('input', function() {
+                settings.intensity = this.value;
+            });
+            
+            domElements.densityControl.addEventListener('input', function() {
+                settings.density = this.value / 100;
+            });
+            
+            domElements.customTextInput.addEventListener('input', function() {
+                settings.customText = this.value;
+            });
+            
+            domElements.textFrequencyControl.addEventListener('input', function() {
+                settings.textFrequency = this.value / 100;
+            });
+            
+            domElements.createImageBtn.addEventListener('click', createCustomImage);
+            domElements.toggleImageBtn.addEventListener('click', toggleImage);
+            domElements.importBtn.addEventListener('click', importText);
+            
+            // Rain color selection
+            domElements.colorOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    domElements.colorOptions.forEach(opt => opt.classList.remove('active'));
+                    this.classList.add('active');
+                    settings.rainColor = this.getAttribute('data-color');
+                });
+            });
+            
+            // Image color selection
+            domElements.imageColorOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    domElements.imageColorOptions.forEach(opt => opt.classList.remove('active'));
+                    this.classList.add('active');
+                    settings.imageColor = this.getAttribute('data-image-color');
+                });
+            });
+            
+            // Toggle control panel with button
+            domElements.togglePanelBtn.addEventListener('click', function() {
+                domElements.controlPanel.classList.toggle('hidden');
+                this.textContent = domElements.controlPanel.classList.contains('hidden') ? 'SHOW' : 'HIDE';
+            });
+            
+            // Toggle control panel with M key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'm' || e.key === 'M') {
+                    domElements.controlPanel.classList.toggle('hidden');
+                    domElements.togglePanelBtn.textContent = domElements.controlPanel.classList.contains('hidden') ? 'SHOW' : 'HIDE';
+                    e.preventDefault();
+                }
+            });
+        }
+
+        // Initialize the application
+        function init() {
+            setupEventListeners();
+        }
+
+        // Start the application when DOM is loaded
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    </script>
+</body>
+</html>
